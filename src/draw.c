@@ -18,8 +18,10 @@ void draw_row(int i){
   get_terminal_size(&width, &h);
   move_terminal(0, i);
   for(width--; width >= 0; width--){
-    write(STDOUT_FILENO, "#", 1);
+    printf("#");
+    //write(STDOUT_FILENO, "#", 1);
   }
+  printf("\r\n");
 }
 
 void draw_ui(){

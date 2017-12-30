@@ -11,18 +11,18 @@
 #include "util.h"
 
 //Holds default terminal settings
-struct termios orig_termios;
+editor_t e;
 
 void reset_terminal(){
-  if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1) err("tcsetattr");
+  if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &e.orig_termios) == -1) err("tcsetattr");
 }
 
 void initialize_terminal(){ 
-  if(tcgetattr(STDIN_FILENO, &orig_termios) == -1) err("tcgetattr");
+  if(tcgetattr(STDIN_FILENO, &e.orig_termios) == -1) err("tcgetattr");
   //Reset terminal to initial state
   atexit(reset_terminal);
 
-  struct termios raw = orig_termios;
+  struct termios raw = e.orig_termios;
 
   //Echoing letters to terminal
   tcflag_t i_mask = ECHO;
@@ -49,6 +49,8 @@ void initialize_terminal(){
   raw.c_cc[VTIME] = 1;
   
   if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) err("tcsetattr");
+
+  get_terminal_size(&e.w, &e.h);
 }
 
 void terminal_loop(){
@@ -87,14 +89,11 @@ int get_terminal_size(int *width, int *height){
 }
 
 int move_terminal(int x, int y){
-  int w, h;
   char buf[80];
-  memset(buf, 0, 80);
   if(x < 0 || y < 0){
     return -1;
   }
-  get_terminal_size(&w, &h);
-  if(x >= w || y >= h){
+  if(x >= e.w || y >= e.h){
     return -1;
   }
   sprintf(buf, "\x1b[%d;%dH", y, x);

@@ -1,9 +1,13 @@
 #ifndef TERM_H
 #define TERM_H
 
+#include <termios.h>
+
 typedef struct editor{
-  int width;
-  int height;
+  int w;
+  int h;
+  struct termios orig_termios;
+
 }editor_t;
 
 void reset_terminal();
