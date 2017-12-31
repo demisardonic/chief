@@ -9,7 +9,10 @@ typedef struct cbuf{
   int l;
 }cbuf_t;
 
-void cbuf_free(cbuf_t *cb);
-void cbuf_append(cbuf_t *cb, const char *b, int l);
+int cbuf_free(cbuf_t *cb);
+int cbuf_append(cbuf_t *cb, const char *b, int l);
+int cbuf_move(cbuf_t *cb, const int x, const int y);
+int cbuf_clear(cbuf_t *cb);
+int cbuf_bar(cbuf_t *cb);
 
 #endif

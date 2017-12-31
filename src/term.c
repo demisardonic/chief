@@ -7,55 +7,13 @@
 
 #include <sys/ioctl.h>
 
+#include "cbuf.h"
 #include "term.h"
 #include "util.h"
 
-//Holds default terminal settings
-editor_t e;
-
-void reset_terminal(){
-  if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &e.orig_termios) == -1) err("tcsetattr");
-}
-
-void initialize_terminal(){ 
-  if(tcgetattr(STDIN_FILENO, &e.orig_termios) == -1) err("tcgetattr");
-  //Reset terminal to initial state
-  atexit(reset_terminal);
-
-  struct termios raw = e.orig_termios;
-
-  //Echoing letters to terminal
-  tcflag_t i_mask = ECHO;
-  //Read input byte by byte instead of line by line
-  i_mask |= ICANON;
-  //ctrl-c ctrl-z signals
-  i_mask |= ISIG;
-  //Turn off i_mask settings
-  raw.c_lflag &= ~i_mask;
-
-  //ctrl-m carriage return
-  tcflag_t l_mask = ICRNL;
-  //ctrl-s and crtl-q signal
-  l_mask |= IXON;
-  //Turn off l_mask settings
-  raw.c_iflag &= ~l_mask;
-
-  //Turn off output processing ie \n -> \r\n
-  tcflag_t o_mask = OPOST;
-  raw.c_oflag &= ~o_mask;
-
-  //Disable blocking for input 1/10 second
-  raw.c_cc[VMIN] = 0;
-  raw.c_cc[VTIME] = 1;
-  
-  if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) err("tcsetattr");
-
-  get_terminal_size(&e.w, &e.h);
-}
-
 void terminal_loop(){
   clear_terminal();
-  draw_ui();
+  render_terminal();
   
   while(1){
     char c = read_input_byte();
@@ -93,10 +51,86 @@ int move_terminal(int x, int y){
   if(x < 0 || y < 0){
     return -1;
   }
-  if(x >= e.w || y >= e.h){
+  if(x >= chief.w || y >= chief.h){
     return -1;
   }
   sprintf(buf, "\x1b[%d;%dH", y, x);
   write(STDOUT_FILENO, buf, strlen(buf));
   return 0;
+}
+
+void clear_terminal(){
+  write(STDOUT_FILENO, "\x1b[2J", 4);
+}
+
+void set_message(const char *m, int len){
+  if(len > 255) len = 255;
+  strncpy(chief.message, m, len);
+  chief.message[len] = '\0';
+  chief.m_len = len;
+}
+
+void render_terminal(){
+  cbuf_t cb = NEW_CBUF;
+
+  //Clear terminal
+  cbuf_append(&cb, "\x1b[2J", 4);
+
+  //Print bottom bar and message
+  cbuf_bar(&cb);
+  cbuf_append(&cb, "\u2503", 3);
+  cbuf_append(&cb, chief.message, chief.m_len);
+  cbuf_move(&cb, chief.w-1, chief.h-1);
+  cbuf_append(&cb, "\u2503", 3);
+
+  cbuf_append(&cb, "\x1b[H", 3);
+  
+  //Draw the character buffer the terminal and free the buffer
+  write(STDOUT_FILENO, cb.b, cb.l);
+  cbuf_free(&cb);
+}
+
+
+void reset_terminal(){
+  if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &chief.orig_termios) == -1) err("tcsetattr");
+}
+
+void initialize_terminal(){
+  if(tcgetattr(STDIN_FILENO, &chief.orig_termios) == -1) err("tcgetattr");
+  //Reset terminal to initial state
+  atexit(reset_terminal);
+
+  struct termios raw = chief.orig_termios;
+
+  //Echoing letters to terminal
+  tcflag_t i_mask = ECHO;
+  //Read input byte by byte instead of line by line
+  i_mask |= ICANON;
+  //ctrl-c ctrl-z signals
+  i_mask |= ISIG;
+  //Turn off i_mask settings
+  raw.c_lflag &= ~i_mask;
+
+  //ctrl-m carriage return
+  tcflag_t l_mask = ICRNL;
+  //ctrl-s and crtl-q signal
+  l_mask |= IXON;
+  //Turn off l_mask settings
+  raw.c_iflag &= ~l_mask;
+
+  //Turn off output processing ie \n -> \r\n
+  tcflag_t o_mask = OPOST;
+  raw.c_oflag &= ~o_mask;
+
+  //Disable blocking for input 1/10 second
+  raw.c_cc[VMIN] = 0;
+  raw.c_cc[VTIME] = 1;
+  
+  if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) err("tcsetattr");
+
+  get_terminal_size(&chief.w, &chief.h);
+  chief.cx = 0;
+  chief.cy = 0;
+  chief.message = (char *) calloc(256, 1);
+  set_message("Welcome", 7);
 }
