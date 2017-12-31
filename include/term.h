@@ -18,10 +18,12 @@ extern term_t chief;
 
 void reset_terminal();
 void initialize_terminal();
+void free_terminal();
 void terminal_loop();
 char read_input_byte();
 void clear_terminal();
 int get_terminal_size(int *width, int *height);
-int move_terminal(int x, int y);
 void render_terminal();
+void set_message(const char *m, int len);
+
 #endif

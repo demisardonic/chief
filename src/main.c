@@ -9,5 +9,7 @@ int main(int argc, char **argv){
   terminal_loop();
   
   clear_terminal();
+
+  free_terminal();
   return 0;
 }

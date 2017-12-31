@@ -11,86 +11,6 @@
 #include "term.h"
 #include "util.h"
 
-void terminal_loop(){
-  clear_terminal();
-  render_terminal();
-  
-  while(1){
-    char c = read_input_byte();
-    switch(c){
-    case CTRL_KEY('q'):
-      return;
-    }
-  }
-}
-
-char read_input_byte(){
-  int num_read;
-  char c;
-  while((num_read = read(STDIN_FILENO, &c, 1)) != 1){
-    if(num_read == -1) err("read");
-  }
-  return c;
-}
-
-int get_terminal_size(int *width, int *height){
-  struct winsize ws;
-  if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0){
-    *width = 0;
-    *height = 0;
-    return -1;
-  }else{
-    *width = ws.ws_col;
-    *height = ws.ws_row;
-    return 0;
-  }
-}
-
-int move_terminal(int x, int y){
-  char buf[80];
-  if(x < 0 || y < 0){
-    return -1;
-  }
-  if(x >= chief.w || y >= chief.h){
-    return -1;
-  }
-  sprintf(buf, "\x1b[%d;%dH", y, x);
-  write(STDOUT_FILENO, buf, strlen(buf));
-  return 0;
-}
-
-void clear_terminal(){
-  write(STDOUT_FILENO, "\x1b[2J", 4);
-}
-
-void set_message(const char *m, int len){
-  if(len > 255) len = 255;
-  strncpy(chief.message, m, len);
-  chief.message[len] = '\0';
-  chief.m_len = len;
-}
-
-void render_terminal(){
-  cbuf_t cb = NEW_CBUF;
-
-  //Clear terminal
-  cbuf_append(&cb, "\x1b[2J", 4);
-
-  //Print bottom bar and message
-  cbuf_bar(&cb);
-  cbuf_append(&cb, "\u2503", 3);
-  cbuf_append(&cb, chief.message, chief.m_len);
-  cbuf_move(&cb, chief.w-1, chief.h-1);
-  cbuf_append(&cb, "\u2503", 3);
-
-  cbuf_append(&cb, "\x1b[H", 3);
-  
-  //Draw the character buffer the terminal and free the buffer
-  write(STDOUT_FILENO, cb.b, cb.l);
-  cbuf_free(&cb);
-}
-
-
 void reset_terminal(){
   if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &chief.orig_termios) == -1) err("tcsetattr");
 }
@@ -133,4 +53,77 @@ void initialize_terminal(){
   chief.cy = 0;
   chief.message = (char *) calloc(256, 1);
   set_message("Welcome", 7);
+}
+
+void free_terminal(){
+  free(chief.message);
+}
+
+//Redraw terminal and read input
+void terminal_loop(){
+  clear_terminal();
+  render_terminal();
+  
+  while(1){
+    char c = read_input_byte();
+    switch(c){
+    case CTRL_KEY('q'):
+      return;
+    }
+  }
+}
+
+//Read raw STDIN stream byte by byte
+char read_input_byte(){
+  int num_read;
+  char c;
+  while((num_read = read(STDIN_FILENO, &c, 1)) != 1){
+    if(num_read == -1) err("read");
+  }
+  return c;
+}
+
+int get_terminal_size(int *width, int *height){
+  struct winsize ws;
+  if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0){
+    *width = 0;
+    *height = 0;
+    return -1;
+  }else{
+    *width = ws.ws_col;
+    *height = ws.ws_row;
+    return 0;
+  }
+}
+
+void clear_terminal(){
+  write(STDOUT_FILENO, "\x1b[2J", 4);
+}
+
+//Change the message within the bottom bar
+void set_message(const char *m, int len){
+  if(len > 255) len = 255;
+  strncpy(chief.message, m, len);
+  chief.message[len] = '\0';
+  chief.m_len = len;
+}
+
+void render_terminal(){
+  cbuf_t cb = NEW_CBUF;
+
+  //Clear terminal
+  cbuf_append(&cb, "\x1b[2J", 4);
+
+  //Print bottom bar and message
+  cbuf_bar(&cb);
+  cbuf_append(&cb, "\u2503", 3);
+  cbuf_append(&cb, chief.message, chief.m_len);
+  cbuf_move(&cb, chief.w-1, chief.h-1);
+  cbuf_append(&cb, "\u2503", 3);
+
+  cbuf_append(&cb, "\x1b[H", 3);
+  
+  //Draw the character buffer the terminal and free the buffer
+  write(STDOUT_FILENO, cb.b, cb.l);
+  cbuf_free(&cb);
 }
