@@ -14,13 +14,20 @@ typedef struct term{
   int m_len;
 }term_t;
 
+enum keys{
+  ARROW_UP = 0,
+  ARROW_LEFT = 1,
+  ARROW_DOWN = 2,
+  ARROW_RIGHT = 3
+};
+
 extern term_t chief;
 
 void reset_terminal();
 void initialize_terminal();
 void free_terminal();
 void terminal_loop();
-char read_input_byte();
+char read_input();
 void clear_terminal();
 int get_terminal_size(int *width, int *height);
 void render_terminal();
