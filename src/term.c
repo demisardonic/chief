@@ -48,7 +48,6 @@ void initialize_terminal(){
   raw.c_cc[VTIME] = 1;
   
   if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) err("tcsetattr");
-
 }
 
 void initialize_editor(){
@@ -150,6 +149,7 @@ char read_input(){
       if(esc[1] >= '0' && esc[1] <= '9'){
 	if(read(STDIN_FILENO, &esc[2], 1) != 1) return '\x1b';
 	if(esc[2] == '~'){
+	  // \x1b[n~ where n is 0 thru 9
 	  switch(esc[1]){
 	  case '1':
 	    return HOME_KEY;
@@ -162,6 +162,7 @@ char read_input(){
 	  }
 	}
       }else{
+	// \x1b[n where n is a capital letter
 	switch(esc[1]){
 	case 'A':
 	  return ARROW_UP;
@@ -178,6 +179,7 @@ char read_input(){
 	}
       }
     }else if(esc[0] == 'O'){
+      // \x1bOn where n is capital letter
       switch(esc[1]){
       case 'H':
 	return HOME_KEY;
@@ -192,6 +194,7 @@ char read_input(){
   return c;
 }
 
+//Finds the size of the terminal in characters 
 int get_terminal_size(int *width, int *height){
   struct winsize ws;
   if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0){
@@ -205,6 +208,7 @@ int get_terminal_size(int *width, int *height){
   }
 }
 
+//Clears the terminal and moves cursor to upper-left corner
 void clear_terminal(){
   write(STDOUT_FILENO, "\x1b[2J", 4);
   write(STDOUT_FILENO, "\x1b[H", 3);
@@ -227,13 +231,17 @@ void set_message(const char *m, ...){
 
 void render_terminal(){
   cbuf_t cb = NEW_CBUF;
+  
   //Turn off cursor
   cbuf_append(&cb, "\x1b[?25l", 6);
-
+  //Reset text color
+  cbuf_color(&cb, COLOR_RESET);
   //Clear terminal
   cbuf_append(&cb, "\x1b[2J", 4);
+  //Reset cursor position to top-left
   cbuf_append(&cb, "\x1b[H", 3);
 
+  //Print each row of text
   int i;
   for(i = 0; i < chief.h - 1; i++){
     if(i < chief.num_rows){
@@ -244,9 +252,6 @@ void render_terminal(){
 
   //Print bottom bar and message
   cbuf_bar(&cb);
-
-  cbuf_append(&cb, "\x1b[H", 3);
-
   //Return cursor position
   cbuf_move(&cb, chief.cx, chief.cy);
   //Turn on cursor
