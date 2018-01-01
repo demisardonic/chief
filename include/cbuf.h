@@ -11,6 +11,7 @@ typedef struct cbuf{
 
 int cbuf_free(cbuf_t *cb);
 int cbuf_append(cbuf_t *cb, const char *b, int l);
+int cbuf_appendf(cbuf_t *cb, const char *fmt, ...);
 int cbuf_move(cbuf_t *cb, const int x, const int y);
 int cbuf_clear(cbuf_t *cb);
 int cbuf_bar(cbuf_t *cb);

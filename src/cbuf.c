@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,6 +20,19 @@ int cbuf_append(cbuf_t *cb, const char *b, const int l){
   return 0;
 }
 
+int cbuf_appendf(cbuf_t *cb, const char *fmt, ...){
+  char buffer[256];
+  int len;
+  
+  va_list argv;
+  va_start(argv, fmt);
+  len = vsprintf(buffer, fmt, argv);
+  va_end(argv);
+
+  cbuf_append(cb, buffer, len);
+  return 0;
+}
+
 int cbuf_move(cbuf_t *cb, const int x, const int y){
   if(x < 0 || y < 0 || x >= chief.w || y >= chief.h)
     return 1;
@@ -36,12 +50,16 @@ int cbuf_clear(cbuf_t *cb){
 
 int cbuf_bar(cbuf_t *cb){
   int width = chief.w - 1;
-  cbuf_move(cb, 0, chief.h - 1);
+  cbuf_move(cb, 0, chief.h - 2);
   cbuf_append(cb, "\u250f", 3);
   while(--width >= 1){
     cbuf_append(cb, "\u2501", 3);
   }
   cbuf_append(cb, "\u2513", 3);
-  cbuf_append(cb, "\r\n", 2);
+  cbuf_append(cb, "\u2503", 3);
+  cbuf_append(cb, chief.message, chief.m_len);
+  cbuf_move(cb, chief.w-1, chief.h - 1);
+  cbuf_append(cb, "\u2503", 3);
+
   return 0;
 }
