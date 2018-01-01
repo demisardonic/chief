@@ -31,6 +31,7 @@ extern term_t chief;
 
 void reset_terminal();
 void initialize_terminal();
+void initialize_editor();
 void free_terminal();
 
 void terminal_loop();

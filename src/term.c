@@ -49,6 +49,9 @@ void initialize_terminal(){
   
   if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) err("tcsetattr");
 
+}
+
+void initialize_editor(){
   get_terminal_size(&chief.w, &chief.h);
   chief.cx = 0;
   chief.cy = 0;
@@ -69,8 +72,8 @@ void initialize_terminal(){
   m = "Go be the second, ugly!";
   chief.rows[2].len = strlen(m);
   chief.rows[2].text = (char *) malloc(sizeof(char) * chief.rows[2].len);
-  strcpy(chief.rows[2].text, m);
-  
+  strcpy(chief.rows[2].text, m); 
+
 }
 
 void free_terminal(){
