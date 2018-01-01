@@ -5,6 +5,7 @@
 
 #include "cbuf.h"
 #include "term.h"
+#include "util.h"
 
 int cbuf_free(cbuf_t *cb){
   free(cb->b);
@@ -61,5 +62,21 @@ int cbuf_bar(cbuf_t *cb){
   cbuf_move(cb, chief.w-1, chief.h - 1);
   cbuf_append(cb, "\u2503", 3);
 
+  return 0;
+}
+
+int cbuf_color(cbuf_t *cb, int fg, int bg){
+  if(fg == -1 && bg == -1){
+    cbuf_appendf(cb, "\x1b[0m");
+    return 0;
+  }
+  fg = RANGE(fg, 0, 7);
+  if(bg < 0 || bg > 7){
+    //bg 9 is transparent
+    bg = 9;
+  }
+  cb->fg = fg;
+  cb->bg = bg;
+  cbuf_appendf(cb, "\x1b[%d;%dm", 30+fg, 40+bg);
   return 0;
 }
