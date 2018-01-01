@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,17 +53,43 @@ void initialize_terminal(){
   chief.cx = 0;
   chief.cy = 0;
   chief.message = (char *) calloc(256, 1);
-  char *m = "Generic Welcome Message";
-  set_message(m, strlen(m));
+  set_message("Generic Welcome Message");
+
+  //TODO: Temporary for testing cursor control
+  chief.num_rows = 3;
+  chief.rows = (row_t*) malloc(sizeof(row_t) * chief.num_rows);
+  char* m = "Henlo you stinky row";
+  chief.rows[0].len = strlen(m);
+  chief.rows[0].text = (char *) malloc(sizeof(char) * chief.rows[0].len);
+  strcpy(chief.rows[0].text, m);
+  m = "TEST";
+  chief.rows[1].len = strlen(m);
+  chief.rows[1].text = (char *) malloc(sizeof(char) * chief.rows[1].len);
+  strcpy(chief.rows[1].text, m);
+  m = "Go be the second, ugly!";
+  chief.rows[2].len = strlen(m);
+  chief.rows[2].text = (char *) malloc(sizeof(char) * chief.rows[2].len);
+  strcpy(chief.rows[2].text, m);
+  
 }
 
 void free_terminal(){
   free(chief.message);
+  while(chief.num_rows-- > 0){
+    free(chief.rows[chief.num_rows].text);
+  }
+  free(chief.rows);
 }
 
 //Redraw terminal and read input
 void terminal_loop(){
   while(1){
+    int r_boundary = 0;
+    if(chief.cy < chief.num_rows) r_boundary = chief.rows[chief.cy].len;
+
+    //TODO: temporary message for cursor position
+    set_message("nm:%d x:%d y:%d l:%d rb:%d", chief.num_rows, chief.cx, chief.cy, chief.rows[chief.cy].len, r_boundary);
+
     clear_terminal();
     render_terminal();
 
@@ -70,22 +97,37 @@ void terminal_loop(){
     switch(c){
     case CTRL_KEY('q'):
       return; //Exit the program
-      //Move the arrows
+    case CTRL_KEY('o'):
+      set_message("open");
+      break;
+    case CTRL_KEY('s'):
+      set_message("save");
+      break;
     case ARROW_UP:
-      if(chief.cy > 0)
+      if(chief.cy > 0){
 	chief.cy--;
+	chief.cx = MIN(chief.cx, chief.rows[chief.cy].len);
+      }
       break;
     case ARROW_LEFT:
       if(chief.cx > 0)
 	chief.cx--;
       break;
     case ARROW_DOWN:
-      if(chief.cy <= chief.h)
+      if(chief.cy + 1 < chief.num_rows){
 	chief.cy++;
+	chief.cx = MIN(chief.cx, chief.rows[chief.cy].len);
+      }
       break;
     case ARROW_RIGHT:
-      if(chief.cx <= chief.w)
+      if(chief.cx < r_boundary)
 	chief.cx++;
+      break;
+    case HOME_KEY:
+      chief.cx = 0;
+      break;
+    case END_KEY:
+      chief.cx = r_boundary;
       break;
     }
   }
@@ -99,19 +141,45 @@ char read_input(){
     if(num_read == -1) err("read");
   }
   if(c == '\x1b'){
-    char esc[2];
-    if(read(STDIN_FILENO, esc, 2) != 2)
-      return '\x1b';
+    char esc[3];
+    if(read(STDIN_FILENO, esc, 2) != 2) return '\x1b';
     if(esc[0] == '['){
+      if(esc[1] >= '0' && esc[1] <= '9'){
+	if(read(STDIN_FILENO, &esc[2], 1) != 1) return '\x1b';
+	if(esc[2] == '~'){
+	  switch(esc[1]){
+	  case '1':
+	    return HOME_KEY;
+	  case '4':
+	    return END_KEY;
+	  case '7':
+	    return HOME_KEY;
+	  case '8':
+	    return END_KEY;
+	  }
+	}
+      }else{
+	switch(esc[1]){
+	case 'A':
+	  return ARROW_UP;
+	case 'D':
+	  return ARROW_LEFT;
+	case 'B':
+	  return ARROW_DOWN;
+	case 'C':
+	  return ARROW_RIGHT;
+	case 'H':
+	  return HOME_KEY;
+	case 'F':
+	  return END_KEY;
+	}
+      }
+    }else if(esc[0] == 'O'){
       switch(esc[1]){
-      case 'A':
-	return ARROW_UP;
-      case 'D':
-	return ARROW_LEFT;
-      case 'B':
-	return ARROW_DOWN;
-      case 'C':
-	return ARROW_RIGHT;
+      case 'H':
+	return HOME_KEY;
+      case 'F':
+	return END_KEY;
       }
     }
     else{
@@ -140,9 +208,16 @@ void clear_terminal(){
 }
 
 //Change the message within the bottom bar
-void set_message(const char *m, int len){
-  if(len > 255) len = 255;
-  strncpy(chief.message, m, len);
+void set_message(const char *m, ...){
+  char buffer[256];
+  
+  va_list argv;
+  va_start(argv, m);
+  int len = vsprintf(buffer, m, argv);
+  va_end(argv);
+  
+  len = MIN(len, 255);
+  strncpy(chief.message, buffer, len);
   chief.message[len] = '\0';
   chief.m_len = len;
 }
@@ -156,12 +231,16 @@ void render_terminal(){
   cbuf_append(&cb, "\x1b[2J", 4);
   cbuf_append(&cb, "\x1b[H", 3);
 
+  int i;
+  for(i = 0; i < chief.h - 1; i++){
+    if(i < chief.num_rows){
+      cbuf_append(&cb, chief.rows[i].text, chief.rows[i].len);
+    }
+    cbuf_append(&cb, "\r\n", 2);
+  }
+
   //Print bottom bar and message
   cbuf_bar(&cb);
-  cbuf_append(&cb, "\u2503", 3);
-  cbuf_append(&cb, chief.message, chief.m_len);
-  cbuf_move(&cb, chief.w-1, chief.h-1);
-  cbuf_append(&cb, "\u2503", 3);
 
   cbuf_append(&cb, "\x1b[H", 3);
 
