@@ -19,23 +19,24 @@ typedef struct term{
 }term_t;
 
 enum keys{
-  ARROW_UP = 0,
-  ARROW_LEFT = 1,
-  ARROW_DOWN = 2,
-  ARROW_RIGHT = 3,
-  HOME_KEY = 4,
-  END_KEY = 5
+  ARROW_UP = 256,
+  ARROW_LEFT,
+  ARROW_DOWN,
+  ARROW_RIGHT,
+  HOME_KEY,
+  END_KEY
 };
 
 extern term_t chief;
 
 void reset_terminal();
 void initialize_terminal();
-void initialize_editor();
+void initialize_editor(int argc, char **argv);
 void free_terminal();
 
 void terminal_loop();
-char read_input();
+int editor_input(int c);
+int read_input();
 
 void clear_terminal();
 int get_terminal_size(int *width, int *height);

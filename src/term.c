@@ -50,29 +50,32 @@ void initialize_terminal(){
   if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) err("tcsetattr");
 }
 
-void initialize_editor(){
+void initialize_editor(int argc, char **argv){
   get_terminal_size(&chief.w, &chief.h);
   chief.cx = 0;
   chief.cy = 0;
   chief.message = (char *) calloc(256, 1);
   set_message("Generic Welcome Message");
 
-  //TODO: Temporary for testing cursor control
-  chief.num_rows = 3;
-  chief.rows = (row_t*) malloc(sizeof(row_t) * chief.num_rows);
-  char* m = "Henlo you stinky row";
-  chief.rows[0].len = strlen(m);
-  chief.rows[0].text = (char *) malloc(sizeof(char) * chief.rows[0].len);
-  strcpy(chief.rows[0].text, m);
-  m = "TEST";
-  chief.rows[1].len = strlen(m);
-  chief.rows[1].text = (char *) malloc(sizeof(char) * chief.rows[1].len);
-  strcpy(chief.rows[1].text, m);
-  m = "Go be the second, ugly!";
-  chief.rows[2].len = strlen(m);
-  chief.rows[2].text = (char *) malloc(sizeof(char) * chief.rows[2].len);
-  strcpy(chief.rows[2].text, m); 
-
+  if(argc > 1){
+    
+  }else{ 
+    //TODO: Temporary for testing cursor control
+    chief.num_rows = 3;
+    chief.rows = (row_t*) malloc(sizeof(row_t) * chief.num_rows);
+    char* m = "Henlo you stinky row";
+    chief.rows[0].len = strlen(m);
+    chief.rows[0].text = (char *) malloc(sizeof(char) * chief.rows[0].len);
+    strcpy(chief.rows[0].text, m);
+    m = "TEST";
+    chief.rows[1].len = strlen(m);
+    chief.rows[1].text = (char *) malloc(sizeof(char) * chief.rows[1].len);
+    strcpy(chief.rows[1].text, m);
+    m = "Go be the second, ugly!";
+    chief.rows[2].len = strlen(m);
+    chief.rows[2].text = (char *) malloc(sizeof(char) * chief.rows[2].len);
+    strcpy(chief.rows[2].text, m); 
+  }
 }
 
 void free_terminal(){
@@ -86,57 +89,63 @@ void free_terminal(){
 //Redraw terminal and read input
 void terminal_loop(){
   while(1){
-    int r_boundary = 0;
-    if(chief.cy < chief.num_rows) r_boundary = chief.rows[chief.cy].len;
-
-    //TODO: temporary message for cursor position
-    set_message("nm:%d x:%d y:%d l:%d rb:%d", chief.num_rows, chief.cx, chief.cy, chief.rows[chief.cy].len, r_boundary);
-
     clear_terminal();
     render_terminal();
-
-    char c = read_input();
-    switch(c){
-    case CTRL_KEY('q'):
-      return; //Exit the program
-    case CTRL_KEY('o'):
-      set_message("open");
+    int c = read_input();
+    if(editor_input(c))
       break;
-    case CTRL_KEY('s'):
-      set_message("save");
-      break;
-    case ARROW_UP:
-      if(chief.cy > 0){
-	chief.cy--;
-	chief.cx = MIN(chief.cx, chief.rows[chief.cy].len);
-      }
-      break;
-    case ARROW_LEFT:
-      if(chief.cx > 0)
-	chief.cx--;
-      break;
-    case ARROW_DOWN:
-      if(chief.cy + 1 < chief.num_rows){
-	chief.cy++;
-	chief.cx = MIN(chief.cx, chief.rows[chief.cy].len);
-      }
-      break;
-    case ARROW_RIGHT:
-      if(chief.cx < r_boundary)
-	chief.cx++;
-      break;
-    case HOME_KEY:
-      chief.cx = 0;
-      break;
-    case END_KEY:
-      chief.cx = r_boundary;
-      break;
-    }
   }
 }
 
+int editor_input(int c){
+  int r_boundary = 0;
+  if(chief.cy < chief.num_rows) r_boundary = chief.rows[chief.cy].len;
+
+  switch(c){
+  case CTRL_KEY('q'):
+    return 1; //Exit the program
+  case CTRL_KEY('o'):
+    set_message("open");
+    break;
+  case CTRL_KEY('s'):
+    set_message("save");
+    break;
+  case ARROW_UP:
+    if(chief.cy > 0){
+      chief.cy--;
+      chief.cx = MIN(chief.cx, chief.rows[chief.cy].len);
+    }
+    break;
+  case ARROW_LEFT:
+    if(chief.cx > 0)
+      chief.cx--;
+    break;
+  case ARROW_DOWN:
+    if(chief.cy + 1 < chief.num_rows){
+      chief.cy++;
+      chief.cx = MIN(chief.cx, chief.rows[chief.cy].len);
+    }
+    break;
+  case ARROW_RIGHT:
+    if(chief.cx < r_boundary)
+      chief.cx++;
+    break;
+  case HOME_KEY:
+    chief.cx = 0;
+    break;
+  case END_KEY:
+    chief.cx = r_boundary;
+    break;
+  }
+
+  //TODO: temporary message for cursor position
+  set_message("nm:%d x:%d y:%d l:%d rb:%d", chief.num_rows, chief.cx, chief.cy, chief.rows[chief.cy].len, r_boundary);
+
+  return 0;
+}
+
 //Read raw STDIN stream byte by byte
-char read_input(){
+int read_input(){
   int num_read;
   char c;
   while((num_read = read(STDIN_FILENO, &c, 1)) != 1){
@@ -227,6 +236,21 @@ void set_message(const char *m, ...){
   strncpy(chief.message, buffer, len);
   chief.message[len] = '\0';
   chief.m_len = len;
+}
+
+void append_row(const char *m){
+  row_t *new_rows = (row_t *) realloc(chief.rows, sizeof(row_t) * (chief.num_rows + 1));
+  if(new_rows){
+    //Create another row and fill it with the row contents
+    row_t row;
+    row.len = strlen(m);
+    row.text = (char *) malloc(sizeof(char) * chief.rows[2].len);
+    strcpy(row.text, m);
+
+    //Store this row in the rows array
+    new_rows[chief.num_rows++] = row;
+    chief.rows = new_rows;
+  }
 }
 
 void render_terminal(){
