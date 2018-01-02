@@ -21,12 +21,15 @@ typedef struct term{
 }term_t;
 
 enum keys{
+  BACKSPACE = 127,
+  ENTER_KEY = '\r',
   ARROW_UP = 256,
   ARROW_LEFT,
   ARROW_DOWN,
   ARROW_RIGHT,
   HOME_KEY,
-  END_KEY
+  END_KEY,
+  DELETE_KEY
 };
 
 extern term_t chief;
@@ -48,6 +51,8 @@ void set_message(const char *m, ...);
 void append_row(const char *m);
 void insert_row(int index, const char *m);
 void delete_row(int index);
+void insert_character(char c, int index, int row_num);
+void delete_character(int index);
 
 void open_file(const char *path);
 void save_file(const char *path);

@@ -104,7 +104,6 @@ void terminal_loop(){
     clear_terminal();
     render_terminal();
     int c = read_input();
-    set_message("%d", c);
     if(editor_input(c))
       break;
   }
@@ -176,8 +175,32 @@ int editor_input(int c){
   case END_KEY:
     chief.cx = r_boundary;
     break;
-  case '\r': //Enter key
-    insert_row(chief.cy, "");
+  case BACKSPACE:
+    if(MIN(chief.cx, chief.rows[chief.cy].len) > 0){
+      delete_character(MIN(chief.cx, chief.rows[chief.cy].len));
+      chief.cx--;
+    }else if(MIN(chief.cx, chief.rows[chief.cy].len) == 0 && chief.cy > 0){
+      int i;
+      int len = chief.rows[chief.cy].len;
+      set_message("%d", len);
+      int old_len = chief.rows[chief.cy - 1].len;
+      for(i = 0; i < len; i++){
+	insert_character(chief.rows[chief.cy].text[i], chief.rows[chief.cy - 1].len, chief.cy - 1);
+      }
+      delete_row(chief.cy);
+      chief.cy--;
+      chief.cx = old_len;
+    }
+    break;
+  case ENTER_KEY:
+    insert_row(++chief.cy, "");
+    break;
+  case DELETE_KEY:
+    delete_character(MIN(chief.cx, chief.rows[chief.cy].len));
+    break;
+  default:
+    insert_character(c, MIN(chief.cx, chief.rows[chief.cy].len), chief.cy);
+    chief.cx++;
     break;
   }
   return 0;
@@ -201,6 +224,8 @@ int read_input(){
 	  switch(esc[1]){
 	  case '1':
 	    return HOME_KEY;
+	  case '3':
+	    return DELETE_KEY;
 	  case '4':
 	    return END_KEY;
 	  case '7':
@@ -361,7 +386,39 @@ void delete_row(int index){
       chief.rows[i] = chief.rows[i + 1];
   }
   chief.num_rows--;
+
   chief.rows = (row_t *) realloc(chief.rows, sizeof(row_t) * chief.num_rows);
+}
+
+void insert_character(char c, int index, int row_num){
+  row_t *old_row = &chief.rows[row_num];
+  char *text = (char *) realloc(old_row->text, old_row->len + 2);
+  if(text){
+    text[old_row->len + 1] = '\0';
+    int i;
+    for(i = old_row->len + 1; i > index; i--){
+      text[i] = text[i-1];
+    }
+    text[index] = c;
+    old_row->text = text;
+    old_row->len++;
+    chief.rows[row_num] = *old_row;
+  }
+}
+
+void delete_character(int index){
+  row_t *old_row = &chief.rows[chief.cy];
+  char *new_text = (char *) calloc(old_row->len, sizeof(char));
+  int i, j;
+  for(i = 0, j = 0; i < old_row->len - 1; i++){
+    if(i != index){
+      new_text[i] = old_row->text[j];
+    }
+    j++;
+  }
+  free(old_row->text);
+  old_row->text = new_text;
+  old_row->len--;
 }
 
 //Open given filepath
