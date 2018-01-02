@@ -58,7 +58,7 @@ void initialize_editor(int argc, char **argv){
   set_message("Generic Welcome Message");
 
   if(argc > 1){
-    
+    open_file(argv[1]);
   }else{ 
     //TODO: Temporary for testing cursor control
     chief.num_rows = 3;
@@ -243,8 +243,9 @@ void append_row(const char *m){
   if(new_rows){
     //Create another row and fill it with the row contents
     row_t row;
-    row.len = strlen(m);
-    row.text = (char *) malloc(sizeof(char) * chief.rows[2].len);
+    memset(&row, 0, sizeof(row_t));
+    row.len = strlen(m) + 1;
+    row.text = (char *) malloc(sizeof(char) * row.len);
     strcpy(row.text, m);
 
     //Store this row in the rows array
@@ -284,4 +285,27 @@ void render_terminal(){
   //Draw the character buffer the terminal and free the buffer
   write(STDOUT_FILENO, cb.b, cb.l);
   cbuf_free(&cb);
+}
+
+void open_file(const char *path){
+  FILE *file = NULL;
+  char *line = NULL;
+  size_t file_len = 0;
+  ssize_t read_len;
+  
+  file = fopen(path, "r");
+  
+  //Find the length of the file
+  fseek(file, 0L, SEEK_END);
+  file_len = ftell(file);
+  rewind(file);
+  while((read_len = getline(&line, &file_len, file)) > 0){
+    int len = strlen(line);
+    line[len-1] = '\0';
+    append_row(line);
+  }
+  
+  //Close the file
+  fclose(file);
+  free(line);
 }

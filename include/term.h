@@ -43,4 +43,6 @@ int get_terminal_size(int *width, int *height);
 void render_terminal();
 void set_message(const char *m, ...);
 
+void open_file(const char *path);
+
 #endif
