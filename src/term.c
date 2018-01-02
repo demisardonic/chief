@@ -92,6 +92,10 @@ void free_terminal(){
   free(chief.message);
   free_rows();
   free(chief.rows);
+  chief.rows = NULL;
+  free(chief.filepath);
+  chief.filepath_len = 0;
+  
 }
 
 //Redraw terminal and read input
@@ -118,6 +122,9 @@ int editor_input(int c){
     break;
   case CTRL_KEY('s'):
     save_file(chief.filepath);
+    break;
+  case CTRL_KEY('k'):
+    delete_row(chief.cy);
     break;
   case CTRL_KEY('x'):
     set_message("cut");
@@ -342,6 +349,19 @@ void insert_row(int index, const char *m){
     chief.num_rows++;
     chief.rows = new_rows;
   }
+}
+
+void delete_row(int index){  
+  int i;
+
+  free(chief.rows[index].text);
+  chief.rows[index].len = 0;
+
+  for(i = index; i < chief.num_rows - 1; i++){
+      chief.rows[i] = chief.rows[i + 1];
+  }
+  chief.num_rows--;
+  chief.rows = (row_t *) realloc(chief.rows, sizeof(row_t) * chief.num_rows);
 }
 
 //Open given filepath

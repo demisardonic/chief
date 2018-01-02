@@ -47,6 +47,7 @@ void set_message(const char *m, ...);
 
 void append_row(const char *m);
 void insert_row(int index, const char *m);
+void delete_row(int index);
 
 void open_file(const char *path);
 void save_file(const char *path);
