@@ -12,6 +12,7 @@ typedef struct term{
   struct termios orig_termios;
   int cx;
   int cy;
+  int yoff;
   char *message;
   int m_len;
   row_t *rows;
