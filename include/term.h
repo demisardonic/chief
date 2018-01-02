@@ -40,10 +40,13 @@ void terminal_loop();
 int editor_input(int c);
 int read_input();
 
-void clear_terminal();
 int get_terminal_size(int *width, int *height);
+void clear_terminal();
 void render_terminal();
 void set_message(const char *m, ...);
+
+void append_row(const char *m);
+void insert_row(int index, const char *m);
 
 void open_file(const char *path);
 void save_file(const char *path);

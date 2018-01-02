@@ -100,6 +100,7 @@ void terminal_loop(){
     clear_terminal();
     render_terminal();
     int c = read_input();
+    set_message("%d", c);
     if(editor_input(c))
       break;
   }
@@ -167,6 +168,9 @@ int editor_input(int c){
     break;
   case END_KEY:
     chief.cx = r_boundary;
+    break;
+  case '\r': //Enter key
+    insert_row(chief.cy, "");
     break;
   }
   return 0;
@@ -266,23 +270,6 @@ void set_message(const char *m, ...){
   chief.m_len = len;
 }
 
-void append_row(const char *m){
-  row_t *new_rows = (row_t *) realloc(chief.rows, sizeof(row_t) * (chief.num_rows + 1));
-  if(new_rows){
-    //Create another row and fill it with the row contents
-    row_t row;
-    memset(&row, 0, sizeof(row_t));
-    row.len = strlen(m);
-    row.text = (char *) calloc(sizeof(char) * (row.len + 1), 1);
-    strcpy(row.text, m);
-
-    //Store this row in the rows array
-    new_rows[chief.num_rows] = row;
-    chief.num_rows++;
-    chief.rows = new_rows;
-  }
-}
-
 void render_terminal(){
   cbuf_t cb = NEW_CBUF;
   
@@ -318,6 +305,47 @@ void render_terminal(){
   cbuf_free(&cb);
 }
 
+void append_row(const char *m){
+  row_t *new_rows = (row_t *) realloc(chief.rows, sizeof(row_t) * (chief.num_rows + 1));
+  if(new_rows){
+    //Create another row and fill it with the row contents
+    row_t row;
+    memset(&row, 0, sizeof(row_t));
+    row.len = strlen(m);
+    row.text = (char *) calloc(sizeof(char) * (row.len + 1), 1);
+    strcpy(row.text, m);
+
+    //Store this row in the rows array
+    new_rows[chief.num_rows] = row;
+    chief.num_rows++;
+    chief.rows = new_rows;
+  }
+}
+
+void insert_row(int index, const char *m){
+  row_t *new_rows = (row_t *) realloc(chief.rows, sizeof(row_t) * (chief.num_rows + 1));
+  if(new_rows){
+    //Create another row and fill it with the row contents
+    row_t row;
+    memset(&row, 0, sizeof(row_t));
+    row.len = strlen(m);
+    row.text = (char *) calloc(sizeof(char) * (row.len + 1), 1);
+    strcpy(row.text, m);
+
+    //Shift all values after index to the right and insert new
+    //row into the array at the index
+    int i;
+    for(i = chief.num_rows; i > index; i--){
+      new_rows[i] = new_rows[i - 1];
+    }
+    new_rows[index] = row;
+    chief.num_rows++;
+    chief.rows = new_rows;
+  }
+}
+
+//Open given filepath
+//TODO: null check file at open
 void open_file(const char *path){
   free_rows();
   set_message("Opened file: %s", path);
@@ -349,6 +377,8 @@ void open_file(const char *path){
   free(line);
 }
 
+//Save the current editor to the given filepath
+//TODO: null check file pointer
 void save_file(const char *path){
   set_message("Saved file: %s", path);
   FILE *outfile = fopen(path, "w");
