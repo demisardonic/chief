@@ -78,11 +78,19 @@ void initialize_editor(int argc, char **argv){
   }
 }
 
+void free_rows(){
+  int i;
+  for(i = 0; i < chief.num_rows; i++){
+    free(chief.rows[i].text);
+    chief.rows[i].text = NULL;
+    chief.rows[i].len = 0;
+  }
+  chief.num_rows = 0;
+}
+
 void free_terminal(){
   free(chief.message);
-  while(chief.num_rows-- > 0){
-    free(chief.rows[chief.num_rows].text);
-  }
+  free_rows();
   free(chief.rows);
 }
 
@@ -105,30 +113,54 @@ int editor_input(int c){
   case CTRL_KEY('q'):
     return 1; //Exit the program
   case CTRL_KEY('o'):
-    set_message("open");
+    open_file(chief.filepath);
     break;
   case CTRL_KEY('s'):
-    set_message("save");
+    save_file(chief.filepath);
+    break;
+  case CTRL_KEY('x'):
+    set_message("cut");
+    break;
+  case CTRL_KEY('c'):
+    set_message("copy");
+    break;
+  case CTRL_KEY('v'):
+    set_message("paste");
+    break;
+  case CTRL_KEY('a'):
+    set_message("select all");
+    break;
+  case CTRL_KEY('z'):
+    set_message("undo");
+    break;
+  case CTRL_KEY('y'):
+    set_message("redo");
     break;
   case ARROW_UP:
     if(chief.cy > 0){
       chief.cy--;
-      chief.cx = MIN(chief.cx, chief.rows[chief.cy].len);
     }
     break;
   case ARROW_LEFT:
-    if(chief.cx > 0)
-      chief.cx--;
+    if(chief.cx > 0){
+      chief.cx = MIN(chief.cx - 1, chief.rows[chief.cy].len - 1);
+    }else if(chief.cx == 0 && chief.cy > 0){
+      chief.cy--;
+      chief.cx = chief.rows[chief.cy].len;
+    }
     break;
   case ARROW_DOWN:
     if(chief.cy + 1 < chief.num_rows){
       chief.cy++;
-      chief.cx = MIN(chief.cx, chief.rows[chief.cy].len);
     }
     break;
   case ARROW_RIGHT:
-    if(chief.cx < r_boundary)
+    if(chief.cx < r_boundary){
       chief.cx++;
+    }else if(chief.cx == r_boundary && chief.cy < chief.num_rows){
+      chief.cy++;
+      chief.cx = 0;
+    }
     break;
   case HOME_KEY:
     chief.cx = 0;
@@ -137,10 +169,6 @@ int editor_input(int c){
     chief.cx = r_boundary;
     break;
   }
-
-  //TODO: temporary message for cursor position
-  set_message("nm:%d x:%d y:%d l:%d rb:%d", chief.num_rows, chief.cx, chief.cy, chief.rows[chief.cy].len, r_boundary);
-
   return 0;
 }
 
@@ -244,12 +272,13 @@ void append_row(const char *m){
     //Create another row and fill it with the row contents
     row_t row;
     memset(&row, 0, sizeof(row_t));
-    row.len = strlen(m) + 1;
-    row.text = (char *) malloc(sizeof(char) * row.len);
+    row.len = strlen(m);
+    row.text = (char *) calloc(sizeof(char) * (row.len + 1), 1);
     strcpy(row.text, m);
 
     //Store this row in the rows array
-    new_rows[chief.num_rows++] = row;
+    new_rows[chief.num_rows] = row;
+    chief.num_rows++;
     chief.rows = new_rows;
   }
 }
@@ -261,14 +290,13 @@ void render_terminal(){
   cbuf_append(&cb, "\x1b[?25l", 6);
   //Reset text color
   cbuf_color(&cb, COLOR_RESET);
-  //Clear terminal
-  cbuf_append(&cb, "\x1b[2J", 4);
   //Reset cursor position to top-left
   cbuf_append(&cb, "\x1b[H", 3);
 
   //Print each row of text
   int i;
   for(i = 0; i < chief.h - 1; i++){
+    cbuf_append(&cb, "\x1b[K", 3);
     if(i < chief.num_rows){
       cbuf_append(&cb, chief.rows[i].text, chief.rows[i].len);
     }
@@ -278,7 +306,10 @@ void render_terminal(){
   //Print bottom bar and message
   cbuf_bar(&cb);
   //Return cursor position
-  cbuf_move(&cb, chief.cx, chief.cy);
+  int real_x = chief.cx;
+  if(chief.cy < chief.num_rows)
+    real_x = MIN(real_x, chief.rows[chief.cy].len);
+  cbuf_move(&cb, real_x, chief.cy);
   //Turn on cursor
   cbuf_append(&cb, "\x1b[?25h", 6);
 
@@ -288,12 +319,20 @@ void render_terminal(){
 }
 
 void open_file(const char *path){
+  free_rows();
+  set_message("Opened file: %s", path);
+
+  chief.filepath_len = strlen(path);
+  chief.filepath = (char *) realloc(chief.filepath, sizeof(char) * chief.filepath_len + 1);
+  strncpy(chief.filepath, path, chief.filepath_len);
+  chief.filepath[chief.filepath_len] = '\0';
+  
   FILE *file = NULL;
   char *line = NULL;
   size_t file_len = 0;
   ssize_t read_len;
   
-  file = fopen(path, "r");
+  file = fopen(chief.filepath, "r");
   
   //Find the length of the file
   fseek(file, 0L, SEEK_END);
@@ -308,4 +347,15 @@ void open_file(const char *path){
   //Close the file
   fclose(file);
   free(line);
+}
+
+void save_file(const char *path){
+  set_message("Saved file: %s", path);
+  FILE *outfile = fopen(path, "w");
+  int i;
+  for(i = 0; i < chief.num_rows; i++){
+    fwrite(chief.rows[i].text, sizeof(char), chief.rows[i].len, outfile);
+    fwrite("\n", sizeof(char), 1, outfile);
+  }
+  fclose(outfile);
 }

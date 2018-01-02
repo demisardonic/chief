@@ -16,6 +16,8 @@ typedef struct term{
   int m_len;
   row_t *rows;
   int num_rows;
+  char *filepath;
+  int filepath_len;
 }term_t;
 
 enum keys{
@@ -44,5 +46,6 @@ void render_terminal();
 void set_message(const char *m, ...);
 
 void open_file(const char *path);
+void save_file(const char *path);
 
 #endif

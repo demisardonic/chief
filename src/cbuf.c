@@ -57,6 +57,7 @@ int cbuf_bar(cbuf_t *cb){
     cbuf_append(cb, "\u2501", 3);
   }
   cbuf_append(cb, "\u2513", 3);
+  cbuf_append(cb, "\x1b[K", 3);
   cbuf_append(cb, "\u2503", 3);
   cbuf_append(cb, chief.message, chief.m_len);
   cbuf_move(cb, chief.w-1, chief.h - 1);
