@@ -149,9 +149,9 @@ int editor_input(int c){
     }
     break;
   case ARROW_LEFT:
-    if(chief.cx > 0){
+    if(MIN(chief.cx, chief.rows[chief.cy].len) > 0){
       chief.cx = MIN(chief.cx - 1, chief.rows[chief.cy].len - 1);
-    }else if(chief.cx == 0 && chief.cy > 0){
+    }else if(MIN(chief.cx, chief.rows[chief.cy].len) == 0 && chief.cy > 0){
       chief.cy--;
       chief.cx = chief.rows[chief.cy].len;
     }
@@ -164,7 +164,7 @@ int editor_input(int c){
   case ARROW_RIGHT:
     if(chief.cx < r_boundary){
       chief.cx++;
-    }else if(chief.cx == r_boundary && chief.cy < chief.num_rows){
+    }else if(MIN(chief.cx, chief.rows[chief.cy].len) == r_boundary && chief.cy < chief.num_rows){
       chief.cy++;
       chief.cx = 0;
     }
@@ -182,7 +182,6 @@ int editor_input(int c){
     }else if(MIN(chief.cx, chief.rows[chief.cy].len) == 0 && chief.cy > 0){
       int i;
       int len = chief.rows[chief.cy].len;
-      set_message("%d", len);
       int old_len = chief.rows[chief.cy - 1].len;
       for(i = 0; i < len; i++){
 	insert_character(chief.rows[chief.cy].text[i], chief.rows[chief.cy - 1].len, chief.cy - 1);
@@ -196,7 +195,16 @@ int editor_input(int c){
     insert_row(++chief.cy, "");
     break;
   case DELETE_KEY:
-    delete_character(MIN(chief.cx, chief.rows[chief.cy].len));
+    if(chief.cx < chief.rows[chief.cy].len){
+      delete_character(MIN(chief.cx, chief.rows[chief.cy].len));
+    }else if(chief.cy < chief.num_rows - 1){
+      int i;
+      int next_len = chief.rows[chief.cy + 1].len;
+      for(i = 0; i < next_len; i++){
+        insert_character(chief.rows[chief.cy + 1].text[i], chief.rows[chief.cy].len, chief.cy);
+      }
+      delete_row(chief.cy + 1);
+    }
     break;
   default:
     insert_character(c, MIN(chief.cx, chief.rows[chief.cy].len), chief.cy);
@@ -410,11 +418,11 @@ void delete_character(int index){
   row_t *old_row = &chief.rows[chief.cy];
   char *new_text = (char *) calloc(old_row->len, sizeof(char));
   int i, j;
-  for(i = 0, j = 0; i < old_row->len - 1; i++){
-    if(i != index){
-      new_text[i] = old_row->text[j];
+  for(i = 0, j = 0; i < old_row->len - 1; i++, j++){
+    if(i == index){
+      j++;
     }
-    j++;
+    new_text[i] = old_row->text[j];
   }
   free(old_row->text);
   old_row->text = new_text;
