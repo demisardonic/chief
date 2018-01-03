@@ -4,11 +4,14 @@
 #include <stdlib.h>
 #include <termios.h>
 
-#include "row.h"
-
 //Gives the effective row and character position instead of the cursor position
 #define EFF_CX MIN(chief.cx, chief.rows[chief.cy + chief.yoff].len)
 #define EFF_CY chief.cy + chief.yoff
+
+typedef struct row{
+  char *text;
+  int len;
+}row_t;
 
 typedef struct term{
   int w;

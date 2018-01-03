@@ -333,7 +333,7 @@ void set_message(const char *m, ...){
 }
 
 void render_terminal(){
-  cbuf_t cb = NEW_CBUF;
+  cbuf_t cb = {NULL, 0};
   
   //Turn off cursor
   cbuf_append(&cb, "\x1b[?25l", 6);
