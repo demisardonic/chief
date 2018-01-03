@@ -18,29 +18,20 @@ void reset_terminal(){
 
 void initialize_terminal(){
   if(tcgetattr(STDIN_FILENO, &chief.orig_termios) == -1) err("tcgetattr");
-  //Reset terminal to initial state
-  atexit(reset_terminal);
+  atexit(reset_terminal);  //Reset terminal to initial state
 
   struct termios raw = chief.orig_termios;
 
-  //Echoing letters to terminal
-  tcflag_t i_mask = ECHO;
-  //Read input byte by byte instead of line by line
-  i_mask |= ICANON;
-  //ctrl-c ctrl-z signals
-  i_mask |= ISIG;
-  //Turn off i_mask settings
-  raw.c_lflag &= ~i_mask;
+  tcflag_t i_mask = ECHO;  //Echoing letters to terminal
+  i_mask |= ICANON;  //Read input byte by byte instead of line by line
+  i_mask |= ISIG;  //ctrl-c ctrl-z signals
+  raw.c_lflag &= ~i_mask;  //Turn off i_mask settings
 
-  //ctrl-m carriage return
-  tcflag_t l_mask = ICRNL;
-  //ctrl-s and crtl-q signal
-  l_mask |= IXON;
-  //Turn off l_mask settings
-  raw.c_iflag &= ~l_mask;
+  tcflag_t l_mask = ICRNL;  //ctrl-m carriage return
+  l_mask |= IXON;  //ctrl-s and crtl-q signal
+  raw.c_iflag &= ~l_mask;  //Turn off l_mask settings
 
-  //Turn off output processing ie \n -> \r\n
-  tcflag_t o_mask = OPOST;
+  tcflag_t o_mask = OPOST;  //Turn off output processing ie \n -> \r\n
   raw.c_oflag &= ~o_mask;
 
   //Disable blocking for input 1/10 second
@@ -61,7 +52,7 @@ void initialize_editor(int argc, char **argv){
   if(argc > 1){
     open_file(argv[1]);
   }else{
-    append_row("");
+    insert_row(chief.num_rows, "");
   }
 }
 
@@ -250,8 +241,7 @@ int read_input(){
       if(esc[1] >= '0' && esc[1] <= '9'){
 	if(read(STDIN_FILENO, &esc[2], 1) != 1) return '\x1b';
 	if(esc[2] == '~'){
-	  // \x1b[n~ where n is 0 thru 9
-	  switch(esc[1]){
+	  switch(esc[1]){ // \x1b[n~ where n is 0 thru 9
 	  case '1':
 	    return HOME_KEY;
 	  case '3':
@@ -265,8 +255,7 @@ int read_input(){
 	  }
 	}
       }else{
-	// \x1b[n where n is a capital letter
-	switch(esc[1]){
+	switch(esc[1]){ // \x1b[n where n is a capital letter
 	case 'A':
 	  return ARROW_UP;
 	case 'D':
@@ -282,8 +271,7 @@ int read_input(){
 	}
       }
     }else if(esc[0] == 'O'){
-      // \x1bOn where n is capital letter
-      switch(esc[1]){
+      switch(esc[1]){ // \x1bOn where n is capital letter
       case 'H':
 	return HOME_KEY;
       case 'F':
@@ -367,27 +355,10 @@ void render_terminal(){
   cbuf_free(&cb);
 }
 
-void append_row(const char *m){
-  row_t *new_rows = (row_t *) realloc(chief.rows, sizeof(row_t) * (chief.num_rows + 1));
-  if(new_rows){
-    //Create another row and fill it with the row contents
-    row_t row;
-    memset(&row, 0, sizeof(row_t));
-    row.len = strlen(m);
-    row.text = (char *) calloc(sizeof(char) * (row.len + 1), 1);
-    strcpy(row.text, m);
-
-    //Store this row in the rows array
-    new_rows[chief.num_rows] = row;
-    chief.num_rows++;
-    chief.rows = new_rows;
-  }
-}
-
 void insert_row(int index, const char *m){
   row_t *new_rows = (row_t *) realloc(chief.rows, sizeof(row_t) * (chief.num_rows + 1));
   if(new_rows){
-    //Create another row and fill it with the row contents
+    //Create another row and fill it with the old row contents
     row_t row;
     memset(&row, 0, sizeof(row_t));
     row.len = strlen(m);
@@ -451,11 +422,12 @@ void delete_character(int index, int row_num){
 }
 
 //Open given filepath
-//TODO: null check file at open
 void open_file(const char *path){
   free_rows();
-  set_message("Opened file: %s", path);
-
+  chief.cx = 0;
+  chief.cy = 0;
+  chief.yoff = 0;
+  
   chief.filepath_len = strlen(path);
   chief.filepath = (char *) realloc(chief.filepath, sizeof(char) * chief.filepath_len + 1);
   strncpy(chief.filepath, path, chief.filepath_len);
@@ -467,31 +439,32 @@ void open_file(const char *path){
   ssize_t read_len;
   
   file = fopen(chief.filepath, "r");
+  if(!file) set_message("Failed to open file: %s", path);
   
-  //Find the length of the file
   fseek(file, 0L, SEEK_END);
   file_len = ftell(file);
   rewind(file);
   while((read_len = getline(&line, &file_len, file)) > 0){
     int len = strlen(line);
     line[len-1] = '\0';
-    append_row(line);
+    insert_row(chief.num_rows, line);
   }
   
   //Close the file
   fclose(file);
   free(line);
+  set_message("Opened file: %s", path);
 }
 
 //Save the current editor to the given filepath
-//TODO: null check file pointer
 void save_file(const char *path){
-  set_message("Saved file: %s", path);
   FILE *outfile = fopen(path, "w");
+  if(!outfile) set_message("Failed to saved file: %s", path);
   int i;
   for(i = 0; i < chief.num_rows; i++){
     fwrite(chief.rows[i].text, sizeof(char), chief.rows[i].len, outfile);
     fwrite("\n", sizeof(char), 1, outfile);
   }
   fclose(outfile);
+  set_message("Saved file: %s", path);
 }

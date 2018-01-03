@@ -56,7 +56,6 @@ void clear_terminal();
 void render_terminal();
 void set_message(const char *m, ...);
 
-void append_row(const char *m);
 void insert_row(int index, const char *m);
 void delete_row(int index);
 void insert_character(char c, int index, int row_num);
