@@ -26,6 +26,7 @@ typedef struct term{
   int num_rows;
   char *filepath;
   int filepath_len;
+  int dirty;
 }term_t;
 
 enum keys{

@@ -44,25 +44,25 @@ int cbuf_move(cbuf_t *cb, const int x, const int y){
   return 0;
 }
 
-int cbuf_clear(cbuf_t *cb){
-  cbuf_append(cb, "\x1b[2J", 3);
-  return 0;
-}
-
 int cbuf_bar(cbuf_t *cb){
   int width = chief.w - 1;
-  cbuf_move(cb, 0, chief.h - 2);
-  cbuf_append(cb, "\u250f", 3);
-  while(--width >= 1){
-    cbuf_append(cb, "\u2501", 3);
-  }
-  cbuf_append(cb, "\u2513", 3);
-  cbuf_append(cb, "\x1b[K", 3);
-  cbuf_append(cb, "\u2503", 3);
-  cbuf_append(cb, chief.message, chief.m_len);
-  cbuf_move(cb, chief.w-1, chief.h - 1);
-  cbuf_append(cb, "\u2503", 3);
+  char bar[width];
+  int len = sprintf(bar, "%c%s:%d", (chief.dirty > 0 ? '*' : ' '), chief.filepath, EFF_CY);
+  cbuf_color(cb, 1, 7);
 
+  cbuf_move(cb, 0, chief.h - 2);
+  cbuf_append(cb, "\x1b[K", 3);
+  cbuf_append(cb, bar, len);
+  width -= len;
+  while(--width >= 1){
+    cbuf_append(cb, " ", 1);
+  }
+  cbuf_color(cb , COLOR_RESET);
+  cbuf_append(cb, "\r\n", 2);
+
+  cbuf_append(cb, "\x1b[K", 3);
+  cbuf_append(cb, chief.message, chief.m_len);
+  
   return 0;
 }
 
@@ -73,8 +73,7 @@ int cbuf_color(cbuf_t *cb, int fg, int bg){
   }
   fg = RANGE(fg, 0, 7);
   if(bg < 0 || bg > 7){
-    //bg 9 is transparent
-    bg = 9;
+    bg = 9; //bg 9 is transparent
   }
   cb->fg = fg;
   cb->bg = bg;

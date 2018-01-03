@@ -46,8 +46,8 @@ void initialize_editor(int argc, char **argv){
   chief.cx = 0;
   chief.cy = 0;
   chief.yoff = 0;
+  chief.dirty = 0;
   chief.message = (char *) calloc(256, 1);
-  set_message("Generic Welcome Message");
 
   if(argc > 1){
     open_file(argv[1]);
@@ -72,8 +72,7 @@ void free_terminal(){
   free(chief.rows);
   chief.rows = NULL;
   free(chief.filepath);
-  chief.filepath_len = 0;
-  
+  chief.filepath_len = 0;  
 }
 
 //Redraw terminal and read input
@@ -87,30 +86,23 @@ void terminal_loop(){
   }
 }
 
-int move_cursor(int c){
-  int r_boundary = 0;
-  if(EFF_CY < chief.num_rows) r_boundary = chief.rows[EFF_CY].len;
-
+void move_cursor(int c){
   switch(c){
   case ARROW_UP:
     if(chief.cy > 0){
       chief.cy--;
     }else if(chief.yoff > 0){
       chief.yoff--;
-    }else{
-      return 0;
     }
-    return 1;
+    break;
   case ARROW_LEFT:
     if(EFF_CX > 0){
       chief.cx = EFF_CX - 1;
     }else if(EFF_CX == 0 && EFF_CY > 0){
-      chief.cy--;
-      chief.cx = chief.rows[EFF_CY].len;
-    }else{
-      return 1;
+      move_cursor(ARROW_UP);
+      move_cursor(END_KEY);
     }
-    return 0;
+    break;
   case ARROW_DOWN:
     if(EFF_CY < chief.num_rows - 1){
       if(EFF_CY < chief.h - 3){
@@ -118,27 +110,23 @@ int move_cursor(int c){
       }else{
 	chief.yoff++;
       }
-      return 0;
     }
-    return 1;
+    break;
   case ARROW_RIGHT:
-    if(chief.cx < r_boundary){
+    if(chief.cx < chief.rows[EFF_CY].len){
       chief.cx++;
-    }else if(EFF_CX == r_boundary && EFF_CY < chief.num_rows){
-      chief.cy++;
-      chief.cx = 0;
-    }else{
-      return 1;
+    }else if(EFF_CX == chief.rows[EFF_CY].len && EFF_CY < chief.num_rows){
+      move_cursor(ARROW_DOWN);
+      move_cursor(HOME_KEY);
     }
-    return 0;
+    break;
   case HOME_KEY:
     chief.cx = 0;
-    return 0;;
+    break;
   case END_KEY:
-    chief.cx = r_boundary;
-    return 0;
+    chief.cx = chief.rows[EFF_CY].len;
+    break;
   }
-  return 1;
 }
 
 int editor_input(int c){
@@ -182,6 +170,7 @@ int editor_input(int c){
     move_cursor(c);
     break;
   case BACKSPACE:
+    chief.dirty++;
     if(EFF_CX > 0){
       delete_character(EFF_CX - 1, EFF_CY);
       move_cursor(ARROW_LEFT);
@@ -194,9 +183,12 @@ int editor_input(int c){
       move_cursor(ARROW_UP);
       delete_row(EFF_CY + 1);
       chief.cx = old_len;
+    }else{
+      chief.dirty--;
     }
     break;
   case ENTER_KEY:
+    chief.dirty++;
     insert_row(EFF_CY + 1, "");
     temp = chief.rows[EFF_CY].len;
     for(i = EFF_CX; i < temp; i++){
@@ -209,6 +201,7 @@ int editor_input(int c){
     move_cursor(HOME_KEY);
     break;
   case DELETE_KEY:
+    chief.dirty++;
     if(chief.cx < chief.rows[EFF_CY].len){
       delete_character(EFF_CX, EFF_CY);
     }else if(EFF_CY < chief.num_rows - 1){
@@ -217,9 +210,12 @@ int editor_input(int c){
         insert_character(chief.rows[EFF_CY + 1].text[i], chief.rows[EFF_CY].len, EFF_CY);
       }
       delete_row(EFF_CY);
+    }else{
+      chief.dirty--;
     }
     break;
   default:
+    chief.dirty++;
     insert_character(c, EFF_CX, EFF_CY);
     move_cursor(ARROW_RIGHT);
     break;
@@ -323,12 +319,9 @@ void set_message(const char *m, ...){
 void render_terminal(){
   cbuf_t cb = {NULL, 0};
   
-  //Turn off cursor
-  cbuf_append(&cb, "\x1b[?25l", 6);
-  //Reset text color
-  cbuf_color(&cb, COLOR_RESET);
-  //Reset cursor position to top-left
-  cbuf_append(&cb, "\x1b[H", 3);
+  cbuf_append(&cb, "\x1b[?25l", 6);  //Turn off cursor
+  cbuf_color(&cb, COLOR_RESET);  //Reset text color
+  cbuf_append(&cb, "\x1b[H", 3);  //Reset cursor position to top-left
 
   //Print each row of text
   int i;
@@ -340,15 +333,10 @@ void render_terminal(){
     cbuf_append(&cb, "\r\n", 2);
   }
 
-  //Print bottom bar and message
-  cbuf_bar(&cb);
-  //Return cursor position
+  cbuf_bar(&cb);  //Print bottom bar and message
   int real_x = EFF_CY < chief.num_rows ? EFF_CX : chief.cx;
-  //if(chief.cy + chief.yoff < chief.num_rows)
-  //  real_x = MIN(real_x, chief.rows[chief.cy + chief.yoff].len);
-  cbuf_move(&cb, real_x, chief.cy);
-  //Turn on cursor
-  cbuf_append(&cb, "\x1b[?25h", 6);
+  cbuf_move(&cb, real_x, chief.cy);  //Return cursor position
+  cbuf_append(&cb, "\x1b[?25h", 6);  //Turn on cursor
 
   //Draw the character buffer the terminal and free the buffer
   write(STDOUT_FILENO, cb.b, cb.l);
@@ -427,7 +415,7 @@ void open_file(const char *path){
   chief.cx = 0;
   chief.cy = 0;
   chief.yoff = 0;
-  
+  chief.dirty = 0;
   chief.filepath_len = strlen(path);
   chief.filepath = (char *) realloc(chief.filepath, sizeof(char) * chief.filepath_len + 1);
   strncpy(chief.filepath, path, chief.filepath_len);
@@ -467,4 +455,5 @@ void save_file(const char *path){
   }
   fclose(outfile);
   set_message("Saved file: %s", path);
+  chief.dirty = 0;
 }
