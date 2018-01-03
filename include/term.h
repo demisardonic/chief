@@ -6,6 +6,10 @@
 
 #include "row.h"
 
+//Gives the effective row and character position instead of the cursor position
+#define EFF_CX MIN(chief.cx, chief.rows[chief.cy + chief.yoff].len)
+#define EFF_CY chief.cy + chief.yoff
+
 typedef struct term{
   int w;
   int h;
@@ -53,7 +57,7 @@ void append_row(const char *m);
 void insert_row(int index, const char *m);
 void delete_row(int index);
 void insert_character(char c, int index, int row_num);
-void delete_character(int index);
+void delete_character(int index, int row_num);
 
 void open_file(const char *path);
 void save_file(const char *path);

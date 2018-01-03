@@ -60,22 +60,8 @@ void initialize_editor(int argc, char **argv){
 
   if(argc > 1){
     open_file(argv[1]);
-  }else{ 
-    //TODO: Temporary for testing cursor control
-    chief.num_rows = 3;
-    chief.rows = (row_t*) malloc(sizeof(row_t) * chief.num_rows);
-    char* m = "Henlo you stinky row";
-    chief.rows[0].len = strlen(m);
-    chief.rows[0].text = (char *) malloc(sizeof(char) * chief.rows[0].len);
-    strcpy(chief.rows[0].text, m);
-    m = "TEST";
-    chief.rows[1].len = strlen(m);
-    chief.rows[1].text = (char *) malloc(sizeof(char) * chief.rows[1].len);
-    strcpy(chief.rows[1].text, m);
-    m = "Go be the second, ugly!";
-    chief.rows[2].len = strlen(m);
-    chief.rows[2].text = (char *) malloc(sizeof(char) * chief.rows[2].len);
-    strcpy(chief.rows[2].text, m); 
+  }else{
+    append_row("");
   }
 }
 
@@ -110,10 +96,62 @@ void terminal_loop(){
   }
 }
 
-int editor_input(int c){
+int move_cursor(int c){
   int r_boundary = 0;
-  if(chief.cy + chief.yoff < chief.num_rows) r_boundary = chief.rows[chief.cy + chief.yoff].len;
+  if(EFF_CY < chief.num_rows) r_boundary = chief.rows[EFF_CY].len;
 
+  switch(c){
+  case ARROW_UP:
+    if(chief.cy > 0){
+      chief.cy--;
+    }else if(chief.yoff > 0){
+      chief.yoff--;
+    }else{
+      return 0;
+    }
+    return 1;
+  case ARROW_LEFT:
+    if(EFF_CX > 0){
+      chief.cx = EFF_CX - 1;
+    }else if(EFF_CX == 0 && EFF_CY > 0){
+      chief.cy--;
+      chief.cx = chief.rows[EFF_CY].len;
+    }else{
+      return 1;
+    }
+    return 0;
+  case ARROW_DOWN:
+    if(EFF_CY < chief.num_rows - 1){
+      if(EFF_CY < chief.h - 3){
+	chief.cy++;
+      }else{
+	chief.yoff++;
+      }
+      return 0;
+    }
+    return 1;
+  case ARROW_RIGHT:
+    if(chief.cx < r_boundary){
+      chief.cx++;
+    }else if(EFF_CX == r_boundary && EFF_CY < chief.num_rows){
+      chief.cy++;
+      chief.cx = 0;
+    }else{
+      return 1;
+    }
+    return 0;
+  case HOME_KEY:
+    chief.cx = 0;
+    return 0;;
+  case END_KEY:
+    chief.cx = r_boundary;
+    return 0;
+  }
+  return 1;
+}
+
+int editor_input(int c){
+  int i, temp;
   switch(c){
   case CTRL_KEY('q'):
     return 1; //Exit the program
@@ -145,75 +183,54 @@ int editor_input(int c){
     set_message("redo");
     break;
   case ARROW_UP:
-    if(chief.cy > 0){
-      chief.cy--;
-    }else if(chief.yoff > 0){
-      chief.yoff--;
-    }
-    break;
   case ARROW_LEFT:
-    if(MIN(chief.cx, chief.rows[chief.cy + chief.yoff].len) > 0){
-      chief.cx = MIN(chief.cx - 1, chief.rows[chief.cy + chief.yoff].len - 1);
-    }else if(MIN(chief.cx, chief.rows[chief.cy + chief.yoff].len) == 0 && chief.cy + chief.yoff > 0){
-      chief.cy--;
-      chief.cx = chief.rows[chief.cy + chief.yoff].len;
-    }
-    break;
   case ARROW_DOWN:
-    if(chief.cy + chief.yoff < chief.num_rows - 1 && chief.cy + chief.yoff < chief.h - 3){
-      chief.cy++;
-    }else{
-      chief.yoff++;
-    }
-    break;
   case ARROW_RIGHT:
-    if(chief.cx < r_boundary){
-      chief.cx++;
-    }else if(MIN(chief.cx, chief.rows[chief.cy + chief.yoff].len) == r_boundary && chief.cy + chief.yoff < chief.num_rows){
-      chief.cy++;
-      chief.cx = 0;
-    }
-    break;
   case HOME_KEY:
-    chief.cx = 0;
-    break;
   case END_KEY:
-    chief.cx = r_boundary;
+    move_cursor(c);
     break;
   case BACKSPACE:
-    if(MIN(chief.cx, chief.rows[chief.cy + chief.yoff].len) > 0){
-      delete_character(MIN(chief.cx, chief.rows[chief.cy + chief.yoff].len));
-      chief.cx--;
-    }else if(MIN(chief.cx, chief.rows[chief.cy + chief.yoff].len) == 0 && chief.cy + chief.yoff > 0){
-      int i;
-      int len = chief.rows[chief.cy + chief.yoff].len;
-      int old_len = chief.rows[chief.cy - 1 + chief.yoff].len;
+    if(EFF_CX > 0){
+      delete_character(EFF_CX - 1, EFF_CY);
+      move_cursor(ARROW_LEFT);
+    }else if(EFF_CX == 0 && EFF_CY > 0){
+      int len = chief.rows[EFF_CY].len;
+      int old_len = chief.rows[EFF_CY - 1].len;
       for(i = 0; i < len; i++){
-	insert_character(chief.rows[chief.cy + chief.yoff].text[i], chief.rows[chief.cy - 1 + chief.yoff].len, chief.cy - 1 + chief.yoff);
+	insert_character(chief.rows[EFF_CY].text[i], chief.rows[EFF_CY - 1].len, EFF_CY -1);
       }
-      delete_row(chief.cy + chief.yoff);
-      chief.cy--;
+      move_cursor(ARROW_UP);
+      delete_row(EFF_CY + 1);
       chief.cx = old_len;
     }
     break;
   case ENTER_KEY:
-    insert_row(++chief.cy + chief.yoff, "");
+    insert_row(EFF_CY + 1, "");
+    temp = chief.rows[EFF_CY].len;
+    for(i = EFF_CX; i < temp; i++){
+      insert_character(chief.rows[EFF_CY].text[i], chief.rows[EFF_CY + 1].len, EFF_CY + 1);
+    }
+    for(i = EFF_CX; i < temp; i++){
+      delete_character(i, EFF_CY);
+    }
+    move_cursor(ARROW_DOWN);
+    move_cursor(HOME_KEY);
     break;
   case DELETE_KEY:
-    if(chief.cx < chief.rows[chief.cy + chief.yoff].len){
-      delete_character(MIN(chief.cx, chief.rows[chief.cy + chief.yoff].len));
-    }else if(chief.cy + chief.yoff < chief.num_rows - 1){
-      int i;
-      int next_len = chief.rows[chief.cy + 1 + chief.yoff].len;
+    if(chief.cx < chief.rows[EFF_CY].len){
+      delete_character(EFF_CX, EFF_CY);
+    }else if(EFF_CY < chief.num_rows - 1){
+      int next_len = chief.rows[EFF_CY + 1].len;
       for(i = 0; i < next_len; i++){
-        insert_character(chief.rows[chief.cy + 1 + chief.yoff].text[i], chief.rows[chief.cy + chief.yoff].len, chief.cy + chief.yoff);
+        insert_character(chief.rows[EFF_CY + 1].text[i], chief.rows[EFF_CY].len, EFF_CY);
       }
-      delete_row(chief.cy + 1 + chief.yoff);
+      delete_row(EFF_CY);
     }
     break;
   default:
-    insert_character(c, MIN(chief.cx, chief.rows[chief.cy + chief.yoff].len), chief.cy + chief.yoff);
-    chief.cx++;
+    insert_character(c, EFF_CX, EFF_CY);
+    move_cursor(ARROW_RIGHT);
     break;
   }
   return 0;
@@ -338,9 +355,9 @@ void render_terminal(){
   //Print bottom bar and message
   cbuf_bar(&cb);
   //Return cursor position
-  int real_x = chief.cx;
-  if(chief.cy + chief.yoff < chief.num_rows)
-    real_x = MIN(real_x, chief.rows[chief.cy + chief.yoff].len);
+  int real_x = EFF_CY < chief.num_rows ? EFF_CX : chief.cx;
+  //if(chief.cy + chief.yoff < chief.num_rows)
+  //  real_x = MIN(real_x, chief.rows[chief.cy + chief.yoff].len);
   cbuf_move(&cb, real_x, chief.cy);
   //Turn on cursor
   cbuf_append(&cb, "\x1b[?25h", 6);
@@ -415,12 +432,11 @@ void insert_character(char c, int index, int row_num){
     text[index] = c;
     old_row->text = text;
     old_row->len++;
-    chief.rows[row_num] = *old_row;
   }
 }
 
-void delete_character(int index){
-  row_t *old_row = &chief.rows[chief.cy];
+void delete_character(int index, int row_num){
+  row_t *old_row = &chief.rows[row_num];
   char *new_text = (char *) calloc(old_row->len, sizeof(char));
   int i, j;
   for(i = 0, j = 0; i < old_row->len - 1; i++, j++){
