@@ -178,10 +178,8 @@ int editor_input(int c){
   case BACKSPACE:
     chief.dirty++;
     if(EFF_CX > 0){
-      delete_character(EFF_CX - 1, EFF_CY);
-      if(EFF_CX < chief.rows[EFF_CY].len){
-	move_cursor(ARROW_LEFT);
-      }
+      move_cursor(ARROW_LEFT);
+      delete_character(EFF_CX, EFF_CY);
     }else if(EFF_CX == 0 && EFF_CY > 0){
       int len = chief.rows[EFF_CY].len;
       int old_len = chief.rows[EFF_CY - 1].len;
