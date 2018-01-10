@@ -141,9 +141,13 @@ int editor_input(int c){
     save_file(chief.filepath);
     break;
   case CTRL_KEY('k'):
-    delete_row(EFF_CY);
+    if(chief.rows[EFF_CY].len == 0){
+      delete_row(EFF_CY);
+    }else{
+      delete_row(EFF_CY);
+      insert_row(EFF_CY, "");
+    }
     move_cursor(HOME_KEY);
-    insert_row(EFF_CY, "");
     break;
   case CTRL_KEY('x'):
     set_message("cut");
