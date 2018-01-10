@@ -115,7 +115,7 @@ void move_cursor(int c){
   case ARROW_RIGHT:
     if(chief.cx < chief.rows[EFF_CY].len){
       chief.cx++;
-    }else if(EFF_CX == chief.rows[EFF_CY].len && EFF_CY < chief.num_rows){
+    }else if(EFF_CX == chief.rows[EFF_CY].len && EFF_CY + 1< chief.num_rows){
       move_cursor(ARROW_DOWN);
       move_cursor(HOME_KEY);
     }
@@ -141,7 +141,9 @@ int editor_input(int c){
     save_file(chief.filepath);
     break;
   case CTRL_KEY('k'):
-    delete_row(chief.cy);
+    delete_row(EFF_CY);
+    move_cursor(HOME_KEY);
+    insert_row(EFF_CY, "");
     break;
   case CTRL_KEY('x'):
     set_message("cut");
@@ -173,7 +175,9 @@ int editor_input(int c){
     chief.dirty++;
     if(EFF_CX > 0){
       delete_character(EFF_CX - 1, EFF_CY);
-      move_cursor(ARROW_LEFT);
+      if(EFF_CX < chief.rows[EFF_CY].len){
+	move_cursor(ARROW_LEFT);
+      }
     }else if(EFF_CX == 0 && EFF_CY > 0){
       int len = chief.rows[EFF_CY].len;
       int old_len = chief.rows[EFF_CY - 1].len;
