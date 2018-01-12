@@ -9,14 +9,39 @@
 
 int cbuf_free(cbuf_t *cb){
   free(cb->b);
+  free(cb);
   return 0;
 }
 
+cbuf_t *cbuf_create(void){
+  cbuf_t *cb = (cbuf_t *) malloc(sizeof(cbuf_t));
+  if(!cb) return NULL;
+
+  cb->s = 10;
+  cb->l = 0;
+  cb->fg = 0;
+  cb->bg = 9;
+  cb->b = (char *) malloc(sizeof(char) * cb->s);
+
+  if(!cb->b) return NULL;
+
+  return cb;
+}
+
 int cbuf_append(cbuf_t *cb, const char *b, const int l){
-  char *new_b = realloc(cb->b, cb->l + l);
-  if(!new_b) return 1;
-  memcpy(&new_b[cb->l], b, l);
-  cb->b = new_b;
+  char *buffer;
+  if(cb->l + l >= cb->s){
+    buffer = (char *) realloc(cb->b, cb->s * 2);
+    if(buffer){
+      cb->s = cb->s * 2;
+    }else{
+      return 1;
+    }
+  }else{
+    buffer = cb->b;
+  }
+  memcpy(buffer + cb->l, b, l);
+  cb->b = buffer;
   cb->l += l;
   return 0;
 }

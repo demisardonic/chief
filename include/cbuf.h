@@ -1,7 +1,7 @@
 #ifndef CBUF_H
 #define CBUF_H
 
-#define NEW_CBUF {NULL, 0}
+#define NEW_CBUF {NULL, 0, 10, -1, -1}
 
 #define COLOR_RESET -1, -1
 #define COLOR_BLK    0,  9
@@ -17,11 +17,13 @@
 typedef struct cbuf{
   char *b;
   int l;
+  int s;
   int fg;
   int bg;
 }cbuf_t;
 
 int cbuf_free(cbuf_t *cb);
+cbuf_t *cbuf_create(void);
 int cbuf_append(cbuf_t *cb, const char *b, int l);
 int cbuf_appendf(cbuf_t *cb, const char *fmt, ...);
 int cbuf_move(cbuf_t *cb, const int x, const int y);

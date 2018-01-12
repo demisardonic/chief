@@ -323,30 +323,30 @@ void set_message(const char *m, ...){
 }
 
 void render_terminal(){
-  cbuf_t cb = {NULL, 0};
+  cbuf_t *cb = cbuf_create();
   
-  cbuf_append(&cb, "\x1b[?25l", 6);  //Turn off cursor
-  cbuf_color(&cb, COLOR_RESET);  //Reset text color
-  cbuf_append(&cb, "\x1b[H", 3);  //Reset cursor position to top-left
+  cbuf_append(cb, "\x1b[?25l", 6);  //Turn off cursor
+  cbuf_color(cb, COLOR_RESET);  //Reset text color
+  cbuf_append(cb, "\x1b[H", 3);  //Reset cursor position to top-left
 
   //Print each row of text
   int i;
   for(i = 0; i < chief.h - 1; i++){
-    cbuf_append(&cb, "\x1b[K", 3);
+    cbuf_append(cb, "\x1b[K", 3);
     if(i < chief.num_rows){
-      cbuf_append(&cb, chief.rows[i + chief.yoff].text, MIN(chief.rows[i + chief.yoff].len, chief.w));
+      cbuf_append(cb, chief.rows[i + chief.yoff].text, MIN(chief.rows[i + chief.yoff].len, chief.w));
     }
-    cbuf_append(&cb, "\r\n", 2);
+    cbuf_append(cb, "\r\n", 2);
   }
 
-  cbuf_bar(&cb);  //Print bottom bar and message
+  cbuf_bar(cb);  //Print bottom bar and message
   int real_x = EFF_CY < chief.num_rows ? EFF_CX : chief.cx;
-  cbuf_move(&cb, real_x, chief.cy);  //Return cursor position
-  cbuf_append(&cb, "\x1b[?25h", 6);  //Turn on cursor
+  cbuf_move(cb, real_x, chief.cy);  //Return cursor position
+  cbuf_append(cb, "\x1b[?25h", 6);  //Turn on cursor
 
   //Draw the character buffer the terminal and free the buffer
-  write(STDOUT_FILENO, cb.b, cb.l);
-  cbuf_free(&cb);
+  write(STDOUT_FILENO, cb->b, cb->l);
+  cbuf_free(cb);
 }
 
 void insert_row(int index, const char *m){
