@@ -215,7 +215,7 @@ int editor_input(int c){
       for(i = 0; i < next_len; i++){
         insert_character(chief.rows[EFF_CY + 1].text[i], chief.rows[EFF_CY].len, EFF_CY);
       }
-      delete_row(EFF_CY);
+      delete_row(EFF_CY + 1);
     }else{
       chief.dirty--;
     }
