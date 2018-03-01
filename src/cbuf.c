@@ -7,8 +7,23 @@
 #include "term.h"
 #include "util.h"
 
+int double_buffer(cbuf_t *cb){
+  char *new_buf = (char *) calloc(cb->s * 2, sizeof(char));
+  if(new_buf){
+    memcpy(new_buf, cb->b, cb->l);
+    cb->s *= 2;
+    free(cb->b);
+    cb->b = new_buf;
+    return 1;
+  }
+  return 0;
+}
+
 int cbuf_free(cbuf_t *cb){
   free(cb->b);
+  cb->b = NULL;
+  cb->s = 0;
+  cb->l = 0;
   free(cb);
   return 0;
 }
@@ -21,7 +36,7 @@ cbuf_t *cbuf_create(void){
   cb->l = 0;
   cb->fg = 0;
   cb->bg = 9;
-  cb->b = (char *) malloc(sizeof(char) * cb->s);
+  cb->b = (char *) calloc(cb->s, sizeof(char));
 
   if(!cb->b) return NULL;
 
@@ -29,19 +44,16 @@ cbuf_t *cbuf_create(void){
 }
 
 int cbuf_append(cbuf_t *cb, const char *b, const int l){
-  char *buffer;
-  if(cb->l + l >= cb->s){
-    buffer = (char *) realloc(cb->b, cb->s * 2);
-    if(buffer){
-      cb->s = cb->s * 2;
-    }else{
+  //This while is important!!!
+  //If appending data into the buffer will make it
+  //larger and twice its original size, doubling the buffer
+  //is not enough!! God that took forever to debug...
+  while((cb->l + l) >= cb->s){
+    if(!double_buffer(cb)){
       return 1;
     }
-  }else{
-    buffer = cb->b;
   }
-  memcpy(buffer + cb->l, b, l);
-  cb->b = buffer;
+  memcpy(cb->b + cb->l, b, l);
   cb->l += l;
   return 0;
 }

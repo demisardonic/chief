@@ -220,6 +220,8 @@ int editor_input(int c){
       chief.dirty--;
     }
     break;
+  case 'l':
+    break;
   default:
     chief.dirty++;
     insert_character(c, EFF_CX, EFF_CY);
