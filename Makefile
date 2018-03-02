@@ -26,7 +26,6 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.$(SRCEXT)
 clean:
 	@echo Removing generated file
 	@$(RM) -rf $(BUILDDIR) $(TARGET)
-	@rmdir $(shell dirname $(TARGET))
 	@$(RM) $(shell find . -type f -name "*~")
 
 rebuild: clean $(TARGET)

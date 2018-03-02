@@ -4,9 +4,12 @@
 
 #include "file_io.h"
 #include "term.h"
+#include "util.h"
 
 //Open given filepath
 void open_file(const char *path){
+  if(!path)
+    err("Cannot open NULL path.\n");
   free_rows();
   chief.cx = 0;
   chief.cy = 0;
@@ -42,6 +45,9 @@ void open_file(const char *path){
 
 //Save the current editor to the given filepath
 void save_file(const char *path){
+  if(!path)
+    err("Cannot save to NULL path.\n");
+
   FILE *outfile = fopen(path, "w");
   if(!outfile) set_message("Failed to saved file: %s", path);
   int i;

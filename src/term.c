@@ -161,9 +161,3 @@ int get_terminal_size(int *width, int *height){
     return 0;
   }
 }
-
-//Clears the terminal and moves cursor to upper-left corner
-void clear_terminal(){
-  write(STDOUT_FILENO, "\x1b[2J", 4);
-  write(STDOUT_FILENO, "\x1b[H", 3);
-}

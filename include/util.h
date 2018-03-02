@@ -8,6 +8,8 @@
 #define MIN(a, b) ((a < b ) ? a : b)
 #define MAX(a, b) ((a < b ) ? b : a)
 #define RANGE(n, a, b) (MAX(MIN(n, b), a))
+
+void clear_terminal();
 void err(const char *error);
 
 #endif
