@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <termios.h>
 
+#include "cbuf.h"
+
 //Gives the effective row and character position instead of the cursor position
 #define EFF_CX MIN(chief.cx, chief.rows[chief.cy + chief.yoff].len)
 #define EFF_CY chief.cy + chief.yoff
@@ -63,19 +65,20 @@ enum keys{
 
 extern term_t chief;
 
-void reset_terminal();
-void initialize_terminal();
+void reset_terminal(void);
+void initialize_terminal(void);
 void initialize_editor(int argc, char **argv);
-void free_terminal();
+void free_rows(void);
+void free_terminal(void);
 
-void terminal_loop();
+void terminal_loop(void);
 int editor_input(int c);
-int read_input();
-int read_prompt_input();
+int read_input(void);
+int read_prompt_input(void);
 
 int get_terminal_size(int *width, int *height);
-void clear_terminal();
-void render_terminal();
+void clear_terminal(void);
+void render_terminal(void);
 void set_message(const char *m, ...);
 
 void insert_row(int index, const char *m);
