@@ -7,7 +7,7 @@ INCLUDEDIR := include
 SRCEXT := c
 SOURCES := $(shell find $(SRCDIR) -type f -name *.$(SRCEXT))
 OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
-CFLAGS := -g -Wall -Werror
+CFLAGS := -g -Wall
 LIB := 
 INC := -I $(INCLUDEDIR)
 

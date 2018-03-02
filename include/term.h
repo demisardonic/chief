@@ -5,6 +5,7 @@
 #include <termios.h>
 
 #include "cbuf.h"
+#include "ui.h"
 
 //Gives the effective row and character position instead of the cursor position
 #define EFF_CX MIN(chief.cx, chief.rows[chief.cy + chief.yoff].len)
@@ -40,6 +41,7 @@ typedef struct term{
   int filepath_len;
   int dirty;
   int prompted;
+  ui_t ui;
 }term_t;
 
 
