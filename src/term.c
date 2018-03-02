@@ -48,7 +48,8 @@ void initialize_editor(int argc, char **argv){
   chief.yoff = 0;
   chief.dirty = 0;
   chief.message = (char *) calloc(256, 1);
-
+  chief.prompted = 0;
+  
   if(argc > 1){
     open_file(argv[1]);
   }else{
@@ -80,7 +81,12 @@ void terminal_loop(){
   while(1){
     clear_terminal();
     render_terminal();
-    int c = read_input();
+    int c;
+    if(chief.prompted){
+      c = read_prompt_input();
+    }else{
+      c = read_input();
+    }
     if(editor_input(c))
       break;
   }
@@ -289,6 +295,10 @@ int read_input(){
   return c;
 }
 
+int read_prompt_input(){
+  return 0;
+}
+
 //Finds the size of the terminal in characters 
 int get_terminal_size(int *width, int *height){
   struct winsize ws;
@@ -324,11 +334,65 @@ void set_message(const char *m, ...){
   chief.m_len = len;
 }
 
+int render_set_color(term_render_t *render, int fg, int bg){
+  cbuf_t *cb = render->cb; 
+  if(fg == -1 && bg == -1){
+    cbuf_appendf(cb, "\x1b[0m");
+    return 0;
+  }
+  fg = RANGE(fg, 0, 7);
+  if(bg < 0 || bg > 7){
+    bg = 9; //bg 9 is transparent
+  }
+  render->fg = fg;
+  render->bg = bg;
+  return cbuf_appendf(cb, "\x1b[%d;%dm", 30+fg, 40+bg);
+}
+
+int render_move_cursor(term_render_t *render, int x, int y){
+  if(x < 0 || y < 0 || x >= chief.w || y >= chief.h)
+    return 0;
+  cbuf_t *cb = render->cb;
+  char tmp[64];
+  memset(tmp, 0, 64);
+  int len = snprintf(tmp, 64, "\x1b[%d;%dH", y+1, x+1);
+  cbuf_append(cb, tmp, len);
+  return 1;
+}
+
+int render_bar(term_render_t *render){
+  cbuf_t *cb = render->cb;
+  int width = chief.w - 1;
+  char bar[width];
+  int len = sprintf(bar, "%c%s:%d", (chief.dirty > 0 ? '*' : ' '), chief.filepath, EFF_CY);
+  render_set_color(render, 1, 7);
+
+  render_move_cursor(render, 0, chief.h - 2);
+  cbuf_append(cb, "\x1b[K", 3);
+  cbuf_append(cb, bar, len);
+  width -= len;
+  while(--width >= 1){
+    cbuf_append(cb, " ", 1);
+  }
+  render_set_color(render, COLOR_RESET);
+  cbuf_append(cb, "\r\n", 2);
+
+  cbuf_append(cb, "\x1b[K", 3);
+  cbuf_append(cb, chief.message, chief.m_len);
+  
+  return 1;
+}
+
 void render_terminal(){
+  term_render_t render = NEW_RENDER;
   cbuf_t *cb = cbuf_create();
+  if(!cb){
+    err("Failed to create cbuf_t.\n");
+  }
+  render.cb = cb;
   
   cbuf_append(cb, "\x1b[?25l", 6);  //Turn off cursor
-  cbuf_color(cb, COLOR_RESET);  //Reset text color
+  render_set_color(&render, COLOR_RESET);  //Reset text color
   cbuf_append(cb, "\x1b[H", 3);  //Reset cursor position to top-left
 
   //Print each row of text
@@ -341,13 +405,13 @@ void render_terminal(){
     cbuf_append(cb, "\r\n", 2);
   }
 
-  cbuf_bar(cb);  //Print bottom bar and message
+  render_bar(&render);  //Print bottom bar and message
   int real_x = EFF_CY < chief.num_rows ? EFF_CX : chief.cx;
-  cbuf_move(cb, real_x, chief.cy);  //Return cursor position
+  render_move_cursor(&render, real_x, chief.cy);  //Return cursor position
   cbuf_append(cb, "\x1b[?25h", 6);  //Turn on cursor
 
   //Draw the character buffer the terminal and free the buffer
-  write(STDOUT_FILENO, cb->b, cb->l);
+  write(STDOUT_FILENO, cb->buffer, cb->len);
   cbuf_free(cb);
 }
 

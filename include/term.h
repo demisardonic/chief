@@ -8,6 +8,16 @@
 #define EFF_CX MIN(chief.cx, chief.rows[chief.cy + chief.yoff].len)
 #define EFF_CY chief.cy + chief.yoff
 
+#define COLOR_RESET -1, -1
+#define COLOR_BLK    0,  9
+#define COLOR_RED    1,  9
+#define COLOR_GRN    2,  9
+#define COLOR_YLW    3,  9
+#define COLOR_BLU    4,  9
+#define COLOR_PUR    5,  9
+#define COLOR_CYN    6,  9
+#define COLOR_WHT    7,  9
+
 typedef struct row{
   char *text;
   int len;
@@ -27,7 +37,17 @@ typedef struct term{
   char *filepath;
   int filepath_len;
   int dirty;
+  int prompted;
 }term_t;
+
+
+#define NEW_RENDER {NULL, -1, -1}
+
+typedef struct term_render{
+  cbuf_t *cb;
+  int fg;
+  int bg;
+}term_render_t;
 
 enum keys{
   BACKSPACE = 127,
@@ -51,6 +71,7 @@ void free_terminal();
 void terminal_loop();
 int editor_input(int c);
 int read_input();
+int read_prompt_input();
 
 int get_terminal_size(int *width, int *height);
 void clear_terminal();
